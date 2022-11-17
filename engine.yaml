@@ -1,0 +1,53 @@
+# TODO: 增加ID
+- name: 海盗湾
+  search: https://thepiratebay.party/s/?q={{keyword_enc}}&video=on
+  parser:
+    list: "#searchResult>tbody>tr"
+    fields:
+      type:
+        selector: td.vertTh>a
+      name:
+        selector: td:nth-child(2)
+      upload:
+        selector: td:nth-child(3)
+        time_format: 01-02 2006
+      download:
+        selector: a[title="Download this torrent using magnet"]
+        attribute: href
+      size:
+        selector: td:nth-child(5)
+      seeders:
+        selector: td:nth-child(6)
+      leechers:
+        selector: td:nth-child(7)
+      uploader:
+        selector: td:nth-child(8)>a
+      detail:
+        selector: td:nth-child(2)>a
+        attribute: href
+
+- name: TorLock
+  search: https://www.torlock.com/?q={{keyword_enc}}
+  parser:
+    list: .table-responsive:eq(1)>table>tbody>tr
+    fields:
+      name:
+        selector: td:nth-child(1) a
+      upload:
+        selector: td.td
+        time_format: 1/2/2006
+      size:
+        selector: td.ts
+      seeders:
+        selector: td.tul
+      peers:
+        selector: td.tdl
+      download:
+        request:
+          selector: td:nth-child(1) a
+          attribute: href
+        selector: table.table-condensed:eq(0)>thead a:eq(0)
+        attribute: href
+      detail:
+        selector: td:nth-child(1) a
+        attribute: href
