@@ -1,7 +1,7 @@
 name: 海盗湾
-search: https://thepiratebay.party/s/?q={{keyword}}&video=on
+search: https://thepiratebay.party/s/?q={{.Keyword}}&video=on
 parser:
-  list: "#searchResult>tbody>tr"
+  list: "#searchResult>tbody>tr.alt"
   fields:
     id:
       selector: td:nth-child(2)>a
@@ -10,9 +10,16 @@ parser:
       selector: td:nth-child(2)
     type:
       selector: td.vertTh>a
+      maps:
+        - contain: Movies
+          to: movie
+        - contain: TV shows
+          to: tv
     upload:
       selector: td:nth-child(3)
-      time_format: 01-02 2006
+      time_formats:
+        - 01-02 2006
+        - 01-02 15:04
     download:
       selector: a[title="Download this torrent using magnet"]
       attribute: href

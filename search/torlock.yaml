@@ -1,5 +1,5 @@
 name: TorLock
-search: https://www.torlock.com/?q={{keyword}}
+search: https://www.torlock.com/?q={{.Keyword}}
 parser:
   list: .table-responsive:eq(1)>table>tbody>tr
   fields:
@@ -15,7 +15,8 @@ parser:
       selector: .well:eq(1)>.row>div:eq(1)>.dl-horizontal:eq(1) a
     upload:
       selector: td.td
-      time_format: 1/2/2006
+      time_formats:
+        - 1/2/2006
     size:
       selector: td.ts
     seeders:

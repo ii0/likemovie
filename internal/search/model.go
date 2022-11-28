@@ -1,6 +1,11 @@
 package search
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var errNotfound = errors.New("not found")
 
 type Model struct {
 	Name   string `yaml:"name"`   // site name
@@ -16,17 +21,24 @@ type Model struct {
 			Size     Field `yaml:"size"`     // size
 			Seeders  Field `yaml:"seeders"`  // seeders
 			Leechers Field `yaml:"leechers"` // leechers
+			Peers    Field `yaml:"peers"`    // peers
 			Uploader Field `yaml:"uploader"` // uploader
 			Detail   Field `yaml:"detail"`   // detail url
 		} `yaml:"fields"`
 	} `yaml:"parser"`
 }
 
+type MapRule struct {
+	Contain string `yaml:"contain"`
+	To      string `yaml:"to"`
+}
+
 type Field struct {
-	Selector   string `yaml:"selector"`
-	Attribute  string `yaml:"attribute"`
-	TimeFormat string `yaml:"time_format"`
-	Request    *Field `yaml:"request"`
+	Selector    string    `yaml:"selector"`
+	Attribute   string    `yaml:"attribute"`
+	TimeFormats []string  `yaml:"time_formats"`
+	Request     *Field    `yaml:"request"`
+	Maps        []MapRule `yaml:"maps"`
 }
 
 func (m Model) String() string {
