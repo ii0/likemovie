@@ -1,0 +1,38 @@
+name: RARBG
+search: https://rarbgproxy.to/search/?search={{.Keyword}}
+parser:
+  list: table.tablelist2_rarbgproxy>tbody>tr.table2ta_rarbgproxy
+  fields:
+    id:
+      selector: td:nth-child(2)>a
+      attribute: href
+    name:
+      selector: td:nth-child(2)>a
+    type:
+      selector: td:nth-child(3)>a:nth-child(1)
+      maps:
+        - contain: Movies
+          to: movie
+        - contain: TV
+          to: tv
+    upload:
+      selector: td:nth-child(4)
+      time_formats:
+        - "2006-01-02 15:04:05"
+    size:
+      selector: td:nth-child(5)
+    seeders:
+      selector: td:nth-child(6)
+    leechers:
+      selector: td:nth-child(7)
+    uploader:
+      selector: td:nth-child(8)
+    # download:
+    #   request:
+    #     selector: td:nth-child(2)>a
+    #     attribute: href
+    #   selector: table.tlista_rarbgproxy>tbody>tr:nth-child(1)>td:nth-child(2)>a
+    #   attribute: href
+    detail:
+      selector: td:nth-child(2)>a
+      attribute: href

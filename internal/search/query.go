@@ -155,12 +155,12 @@ func (m *Model) each(ctx context.Context, node *cdp.Node, field Field) (ret stri
 		return "", nil
 	}
 	// TODO: request
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	var child []*cdp.Node
-	err = chromedp.Run(ctx, chromedp.Nodes(field.Selector, &child, chromedp.ByQuery, chromedp.FromNode(node)))
+	err = chromedp.Run(ctx, chromedp.Nodes(field.Selector, &child,
+		chromedp.ByQuery, chromedp.FromNode(node)))
 	if err != nil {
 		return "", err
 	}
