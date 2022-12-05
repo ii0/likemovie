@@ -37,12 +37,8 @@ type Node struct {
 	Detail   string
 }
 
-func (m Model) Query(keyword string) ([]Node, error) {
-	ctx, cancel := chromedp.NewExecAllocator(context.Background(),
-		chromedp.NoFirstRun,
-		chromedp.Flag("headless", false))
-	defer cancel()
-	ctx, cancel = chromedp.NewContext(ctx)
+func (m *Model) Query(ctx context.Context, keyword string) ([]Node, error) {
+	ctx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
 	url, err := m.buildURL(keyword)
 	if err != nil {
@@ -127,7 +123,7 @@ func (m Model) Query(keyword string) ([]Node, error) {
 	return ret, nil
 }
 
-func (m Model) buildURL(keyword string) (string, error) {
+func (m *Model) buildURL(keyword string) (string, error) {
 	tpl := template.New(m.Name)
 	var err error
 	tpl, err = tpl.Parse(m.Search)
@@ -146,7 +142,7 @@ func (m Model) buildURL(keyword string) (string, error) {
 	return buf.String(), nil
 }
 
-func (m Model) each(ctx context.Context, node *cdp.Node, field Field) (ret string, err error) {
+func (m *Model) each(ctx context.Context, node *cdp.Node, field Field) (ret string, err error) {
 	defer func() {
 		ret = strings.ReplaceAll(ret, "\xc2\xa0", " ") // &nbsp; => space
 		ret = strings.TrimSpace(ret)
@@ -186,7 +182,7 @@ func (m Model) each(ctx context.Context, node *cdp.Node, field Field) (ret strin
 	return text, nil
 }
 
-func (m Model) mapReduce(str string, maps []MapRule) string {
+func (m *Model) mapReduce(str string, maps []MapRule) string {
 	for _, rule := range maps {
 		if len(rule.Contain) > 0 && strings.Contains(str, rule.Contain) {
 			return rule.To
@@ -195,7 +191,7 @@ func (m Model) mapReduce(str string, maps []MapRule) string {
 	return str
 }
 
-func (m Model) timeFormats(str string, formats []string) string {
+func (m *Model) timeFormats(str string, formats []string) string {
 	for _, format := range formats {
 		t, err := time.ParseInLocation(format, str, time.Local)
 		if err == nil {

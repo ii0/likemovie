@@ -41,6 +41,6 @@ type Field struct {
 	Maps        []MapRule `yaml:"maps"`
 }
 
-func (m Model) String() string {
+func (m *Model) String() string {
 	return fmt.Sprintf("%s => %s", m.Name, m.Search)
 }

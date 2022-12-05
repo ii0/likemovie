@@ -10,7 +10,7 @@ import (
 )
 
 type App struct {
-	models []search.Model
+	models search.Models
 }
 
 func New() *App {
@@ -29,13 +29,7 @@ func (app *App) Init(searchDir string) {
 	var err error
 	app.models, err = search.Load(searchDir)
 	runtime.Assert(err)
-	for _, model := range app.models {
-		nodes, err := model.Query("abc")
-		if err != nil {
-			logging.Error("%s: %v", model.Name, err)
-			continue
-		}
-		data, _ := json.MarshalIndent(nodes, "", "  ")
-		fmt.Println(string(data))
-	}
+	nodes := app.models.Query("abc")
+	data, _ := json.MarshalIndent(nodes, "", "  ")
+	fmt.Println(string(data))
 }

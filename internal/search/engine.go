@@ -7,12 +7,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Load(dir string) ([]Model, error) {
+func Load(dir string) (Models, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
 	if err != nil {
 		return nil, err
 	}
-	var ret []Model
+	var ret Models
 	for _, file := range files {
 		model, err := load(file)
 		if err != nil {
