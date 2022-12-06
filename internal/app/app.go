@@ -10,11 +10,12 @@ import (
 )
 
 type App struct {
+	debug  bool
 	models search.Models
 }
 
-func New() *App {
-	return &App{}
+func New(debug bool) *App {
+	return &App{debug: debug}
 }
 
 func (app *App) Init(searchDir string) {
@@ -29,7 +30,7 @@ func (app *App) Init(searchDir string) {
 	var err error
 	app.models, err = search.Load(searchDir)
 	runtime.Assert(err)
-	nodes := app.models.Query("abc")
+	nodes := app.models.Query("abc", app.debug)
 	data, _ := json.MarshalIndent(nodes, "", "  ")
 	fmt.Println(string(data))
 }

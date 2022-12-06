@@ -27,12 +27,12 @@ parser:
       selector: td:nth-child(7)
     uploader:
       selector: td:nth-child(8)
-    # download:
-    #   request:
-    #     selector: td:nth-child(2)>a
-    #     attribute: href
-    #   selector: table.tlista_rarbgproxy>tbody>tr:nth-child(1)>td:nth-child(2)>a
-    #   attribute: href
+    download:
+      request:
+        selector: td:nth-child(2)>a
+        attribute: href
+      selector: table.tlista_rarbgproxy>tbody>tr:nth-child(1)>td:nth-child(2)>a
+      attribute: href
     detail:
       selector: td:nth-child(2)>a
       attribute: href

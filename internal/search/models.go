@@ -11,11 +11,15 @@ import (
 
 type Models []Model
 
-func (list Models) Query(keyword string) []Node {
-	ctx, cancel := chromedp.NewExecAllocator(context.Background(),
-		chromedp.NoFirstRun,
-		chromedp.Flag("headless", false))
-	defer cancel()
+func (list Models) Query(keyword string, debug bool) []Node {
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if debug {
+		ctx, cancel = chromedp.NewExecAllocator(context.Background(),
+			chromedp.NoFirstRun,
+			chromedp.Flag("headless", false))
+		defer cancel()
+	}
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 	chromedp.Run(ctx, chromedp.Navigate(""))

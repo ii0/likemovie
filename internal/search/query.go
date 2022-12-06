@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -40,87 +42,115 @@ type Node struct {
 func (m *Model) Query(ctx context.Context, keyword string) ([]Node, error) {
 	ctx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
-	url, err := m.buildURL(keyword)
+	u, err := m.buildURL(keyword)
 	if err != nil {
 		return nil, err
 	}
+	up, err := url.Parse(u)
+	if err != nil {
+		return nil, err
+	}
+	prefix := up.Scheme + "://" + up.Host
 	var list []*cdp.Node
 	err = chromedp.Run(ctx,
-		chromedp.Navigate(url),
+		chromedp.Navigate(u),
 		chromedp.WaitVisible(m.Parser.List),
 		chromedp.Nodes(m.Parser.List, &list))
 	if err != nil {
 		return nil, err
 	}
 	var ret []Node
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	wg.Add(len(list))
 	for _, node := range list {
-		var n Node
-		n.ID, err = m.each(ctx, node, m.Parser.Fields.ID)
-		if err != nil {
-			logging.Warning("[>> %s <<]get id from node %s: %v", m.Name, node.FullXPath(), err)
-			continue
-		}
-		n.Name, err = m.each(ctx, node, m.Parser.Fields.Name)
-		if err != nil {
-			logging.Warning("[>> %s <<]get name from node %s: %v", m.Name, node.FullXPath(), err)
-			continue
-		}
-		t, err := m.each(ctx, node, m.Parser.Fields.Type)
-		if err != nil {
-			logging.Warning("[>> %s <<]get type from node %s: %v", m.Name, node.FullXPath(), err)
-			continue
-		}
-		switch t {
-		case "movie":
-			n.Type = TypeMovie
-		case "tv":
-			n.Type = TypeTv
-		default:
-			n.Type = TypeUnknown
-		}
-		n.Download, err = m.each(ctx, node, m.Parser.Fields.Download)
-		if err != nil {
-			logging.Warning("[>> %s <<]get download from node %s: %v", m.Name, node.FullXPath(), err)
-			continue
-		}
-		ts, err := m.each(ctx, node, m.Parser.Fields.Upload)
-		if err != nil {
-			logging.Warning("[>> %s <<]get upload time from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		n.Upload, _ = time.Parse(time.RFC3339, ts)
-		size, err := m.each(ctx, node, m.Parser.Fields.Size)
-		if err != nil {
-			logging.Warning("[>> %s <<]get size from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		sz, err := humanize.ParseBytes(size)
-		if err == nil {
-			n.Size = runtime.Bytes(sz)
-		}
-		seeders, err := m.each(ctx, node, m.Parser.Fields.Seeders)
-		if err != nil {
-			logging.Warning("[>> %s <<]get seeders from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		cnt, _ := strconv.ParseUint(seeders, 10, 64)
-		n.Seeders = uint(cnt)
-		leechers, err := m.each(ctx, node, m.Parser.Fields.Leechers)
-		if err != nil {
-			logging.Warning("[>> %s <<]get leechers from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		cnt, _ = strconv.ParseUint(leechers, 10, 64)
-		n.Leechers = uint(cnt)
-		peers, err := m.each(ctx, node, m.Parser.Fields.Peers)
-		if err != nil {
-			logging.Warning("[>> %s <<]get peers from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		cnt, _ = strconv.ParseUint(peers, 10, 64)
-		n.Peers = uint(cnt)
-		n.Detail, err = m.each(ctx, node, m.Parser.Fields.Detail)
-		if err != nil {
-			logging.Warning("[>> %s <<]get detail from node %s: %v", m.Name, node.FullXPath(), err)
-		}
-		ret = append(ret, n)
+		go func(node *cdp.Node) {
+			defer wg.Done()
+			if node := m.fetch(ctx, node, prefix); node != nil {
+				mu.Lock()
+				ret = append(ret, *node)
+				mu.Unlock()
+			}
+		}(node)
 	}
+	wg.Wait()
 	return ret, nil
+}
+
+func (m *Model) fetch(ctx context.Context, node *cdp.Node, prefix string) *Node {
+	var n Node
+	var err error
+	n.ID, err = m.each(ctx, node, m.Parser.Fields.ID, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get id from node %s: %v", m.Name, node.FullXPath(), err)
+		return nil
+	}
+	n.Name, err = m.each(ctx, node, m.Parser.Fields.Name, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get name from node %s: %v", m.Name, node.FullXPath(), err)
+		return nil
+	}
+	t, err := m.each(ctx, node, m.Parser.Fields.Type, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get type from node %s: %v", m.Name, node.FullXPath(), err)
+		return nil
+	}
+	switch t {
+	case "movie":
+		n.Type = TypeMovie
+	case "tv":
+		n.Type = TypeTv
+	default:
+		n.Type = TypeUnknown
+	}
+	n.Download, err = m.each(ctx, node, m.Parser.Fields.Download, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get download from node %s: %v", m.Name, node.FullXPath(), err)
+		return nil
+	}
+	ts, err := m.each(ctx, node, m.Parser.Fields.Upload, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get upload time from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	n.Upload, _ = time.Parse(time.RFC3339, ts)
+	size, err := m.each(ctx, node, m.Parser.Fields.Size, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get size from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	sz, err := humanize.ParseBytes(size)
+	if err == nil {
+		n.Size = runtime.Bytes(sz)
+	}
+	seeders, err := m.each(ctx, node, m.Parser.Fields.Seeders, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get seeders from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	cnt, _ := strconv.ParseUint(seeders, 10, 64)
+	n.Seeders = uint(cnt)
+	leechers, err := m.each(ctx, node, m.Parser.Fields.Leechers, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get leechers from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	cnt, _ = strconv.ParseUint(leechers, 10, 64)
+	n.Leechers = uint(cnt)
+	peers, err := m.each(ctx, node, m.Parser.Fields.Peers, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get peers from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	cnt, _ = strconv.ParseUint(peers, 10, 64)
+	n.Peers = uint(cnt)
+	n.Detail, err = m.each(ctx, node, m.Parser.Fields.Detail, prefix)
+	if err != nil {
+		logging.Warning("[>> %s <<]get detail from node %s: %v", m.Name, node.FullXPath(), err)
+	}
+	if !strings.HasPrefix(n.Detail, "http://") &&
+		!strings.HasPrefix(n.Detail, "https://") {
+		if !strings.HasPrefix(n.Detail, "/") {
+			n.Detail = "/" + n.Detail
+		}
+		n.Detail = prefix + n.Detail
+	}
+	return &n
 }
 
 func (m *Model) buildURL(keyword string) (string, error) {
@@ -142,7 +172,7 @@ func (m *Model) buildURL(keyword string) (string, error) {
 	return buf.String(), nil
 }
 
-func (m *Model) each(ctx context.Context, node *cdp.Node, field Field) (ret string, err error) {
+func (m *Model) each(ctx context.Context, node *cdp.Node, field Field, prefix string) (ret string, err error) {
 	defer func() {
 		ret = strings.ReplaceAll(ret, "\xc2\xa0", " ") // &nbsp; => space
 		ret = strings.TrimSpace(ret)
@@ -154,13 +184,39 @@ func (m *Model) each(ctx context.Context, node *cdp.Node, field Field) (ret stri
 	if len(field.Selector) == 0 {
 		return "", nil
 	}
-	// TODO: request
+	if field.Request != nil {
+		addr, err := m.each(ctx, node, *field.Request, prefix)
+		if err != nil {
+			return "", err
+		}
+		if !strings.HasPrefix(addr, "http://") &&
+			!strings.HasPrefix(addr, "https://") {
+			if !strings.HasPrefix(addr, "/") {
+				addr = "/" + addr
+			}
+			addr = prefix + addr
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = chromedp.NewContext(ctx)
+		defer cancel()
+		timeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		err = chromedp.Run(timeout, chromedp.Navigate(addr))
+		if err != nil {
+			return "", err
+		}
+		node = nil
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	var child []*cdp.Node
-	err = chromedp.Run(ctx, chromedp.Nodes(field.Selector, &child,
-		chromedp.ByQuery, chromedp.FromNode(node)))
+	if node == nil {
+		err = chromedp.Run(ctx, chromedp.Nodes(field.Selector, &child))
+	} else {
+		err = chromedp.Run(ctx, chromedp.Nodes(field.Selector, &child,
+			chromedp.ByQuery, chromedp.FromNode(node)))
+	}
 	if err != nil {
 		return "", err
 	}
